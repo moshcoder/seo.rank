@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { createApp } from '../src/server.ts'
 import { DailyQuota } from '../src/ratelimit.ts'
 import { fakeWeb } from './fixtures.ts'
+import { ringBar, ringSites, setRing } from '../src/ring.ts'
 
 const make = (opts: { pitVerify?: string; quota?: DailyQuota } = {}) => {
   const web = fakeWeb()
@@ -79,5 +80,38 @@ describe('the free limit', () => {
     expect(q.take('a').ok).toBe(false)
     now = Date.UTC(2026, 9, 18, 0, 1)
     expect(q.take('a').ok).toBe(true)
+  })
+})
+
+describe('the Moshpit ring bar', () => {
+  const page = async (headers: Record<string, string>) =>
+    (await createApp({ auditOptions: fakeWeb(), quota: new DailyQuota(10, 2000) }).fetch(new Request('http://seo.rank/', { headers }), { ip: '203.0.113.7' })).text()
+
+  it('links Moshpit names directly for a visitor who reached seo.rank on Moshpit DNS', async () => {
+    const html = await page({ host: 'seo.rank' })
+    expect(html).toContain('<nav class="ring-bar"')
+    expect(html).toContain('<a href="https://seo.rank/" aria-current="page"')
+    expect(html).toContain('href="https://family.ancestry/"')
+    expect(html).toContain('random?from=seo.rank&amp;direct=1')
+    expect(html).not.toContain('<!--ring-bar-->')
+  })
+
+  it('links through the gateway when the page came through it, or by any other host', async () => {
+    for (const headers of [{ host: 'seo.rank', 'x-moshpit-name': 'seo.rank' }, { host: '127.0.0.1:8790' }] as Record<string, string>[]) {
+      const html = await page(headers)
+      expect(html).toContain('href="https://pit.moshcode.sh/n/family.ancestry"')
+      expect(html).toContain('href="https://pit.world/"')
+      expect(html).not.toContain('direct=1')
+    }
+  })
+
+  it('takes the member list from pit.world/api/ring and ignores a broken one', () => {
+    const before = ringSites()
+    expect(setRing({ nope: true })).toBe(false)
+    expect(setRing({ sites: [{ name: '<script>' }] })).toBe(false)
+    expect(ringSites()).toBe(before)
+    expect(setRing({ sites: [...before, { name: 'new.pit', about: 'x', moshpit: true }] })).toBe(true)
+    expect(ringBar('seo.rank', false)).toContain('https://pit.moshcode.sh/n/new.pit')
+    setRing({ sites: before })
   })
 })

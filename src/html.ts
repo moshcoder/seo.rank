@@ -54,6 +54,7 @@ ${o.pitVerify ? `<meta name="pit-verify" content="${esc(o.pitVerify)}">\n` : ''}
 <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebApplication', name: 'seo.rank', url: SITE, applicationCategory: 'SEO tool', operatingSystem: 'Any', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, isAccessibleForFree: true, license: `${REPO}/blob/main/LICENSE` }).replace(/</g, '\\u003c')}</script>
 </head>
 <body>
+<!--ring-bar-->
 <header class="top"><a class="brand" href="/">${LOGO}<span>seo<b>.rank</b></span></a><nav><a href="/about">How it works</a><a href="/about#api">API · CLI · MCP</a><a href="${REPO}">GitHub</a></nav></header>
 <main>
 ${o.body}

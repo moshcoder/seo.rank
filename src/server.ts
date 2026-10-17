@@ -5,6 +5,7 @@
  * logged. Errors are reported without the URL attached.
  */
 import { Hono, type Context } from 'hono'
+import { RING_PLACEHOLDER, ringBar, startRingRefresh, visitorOnMoshpit } from './ring.js'
 import { assertFetchable, FetchRefused } from './fetch.js'
 import { audit as runAudit, AuditCache, AuditError, normalizeUrl, type Audit, type AuditOptions } from './audit.js'
 import { aboutPage, errorPage, homePage, messagePage, resultsPage, SITE } from './html.js'
@@ -68,6 +69,12 @@ export function createApp(deps: Deps = {}) {
 
   app.use('*', async (c, next) => {
     await next()
+    // The Moshpit ring bar is drawn per request: direct links for a visitor on Moshpit DNS, gateway links otherwise.
+    if (c.res.headers.get('content-type')?.startsWith('text/html')) {
+      const html = await c.res.text()
+      const bar = ringBar('seo.rank', visitorOnMoshpit('seo.rank', c.req.header('host'), c.req.header('x-moshpit-name')))
+      c.res = new Response(html.replace(RING_PLACEHOLDER, bar), c.res)
+    }
     for (const [name, value] of Object.entries(SECURITY_HEADERS)) c.header(name, value)
     // Nothing on seo.rank sets a cookie, and nothing ever will by accident.
     c.res.headers.delete('set-cookie')
@@ -260,6 +267,7 @@ export function serve(options: { port?: number; hostname?: string } = {}) {
   const env = process.env
   const app = createApp({ ...(env.PIT_VERIFY ? { pitVerify: env.PIT_VERIFY } : {}) })
   const trustProxy = (env.SEORANK_TRUST_PROXY ?? '1') === '1'
+  startRingRefresh()
   return Bun.serve({
     port: options.port ?? Number(env.PORT ?? 8790),
     hostname: options.hostname ?? env.HOST ?? '127.0.0.1',
