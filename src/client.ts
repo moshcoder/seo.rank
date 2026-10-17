@@ -138,7 +138,7 @@ export class SeoRankClient {
       response = await this.fetchImpl(`${route.origin}${path}`, {
         ...route.init,
         ...init,
-        headers: { accept: 'application/json', ...((route.init.headers as Record<string, string>) ?? {}), ...((init.headers as Record<string, string>) ?? {}) },
+        headers: { accept: 'application/json', ...(process.env.SEORANK_API_KEY ? { authorization: `Bearer ${process.env.SEORANK_API_KEY}` } : {}), ...((route.init.headers as Record<string, string>) ?? {}), ...((init.headers as Record<string, string>) ?? {}) },
         signal: AbortSignal.timeout(45_000),
       } as RequestInit)
     } catch (error) {

@@ -9,6 +9,7 @@ import { assertFetchable, FetchRefused } from './fetch.js'
 import { audit as runAudit, AuditCache, AuditError, normalizeUrl, type Audit, type AuditOptions } from './audit.js'
 import { aboutPage, errorPage, homePage, messagePage, resultsPage, SITE } from './html.js'
 import { DailyQuota, Gate, type Quota } from './ratelimit.js'
+import { KeyQuota, matchKey, parseApiKeys, presentedKey, type ApiKey } from './keys.js'
 
 export { VERSION } from './version.js'
 import { VERSION } from './version.js'
@@ -22,7 +23,15 @@ export type Deps = {
   publicDir?: string
   /** pit.world's ownership token for the seo.rank listing; rendered as <meta name="pit-verify">. */
   pitVerify?: string
+  /** Trusted callers (SEORANK_API_KEYS). */
+  apiKeys?: ApiKey[]
+  keyQuota?: KeyQuota
+  /** Concurrency for keyed calls, separate from the public gate so neither starves the other. */
+  keyGate?: Gate
 }
+
+/** Who is asking: an anonymous visitor (by IP) or a trusted caller (by key name). */
+type Caller = { kind: 'visitor'; ip: string } | { kind: 'key'; name: string }
 
 /** The visitor's address arrives as a binding from serve() (or a test), never from a header the visitor controls. */
 type Env = { Bindings: { ip?: string } }
@@ -51,6 +60,9 @@ export function createApp(deps: Deps = {}) {
   const cache = deps.cache ?? new AuditCache()
   const gate = deps.gate ?? new Gate(Number(process.env.SEORANK_CONCURRENCY ?? 8))
   const options = deps.auditOptions ?? {}
+  const apiKeys = deps.apiKeys ?? parseApiKeys(process.env.SEORANK_API_KEYS)
+  const keyQuota = deps.keyQuota ?? new KeyQuota(Number(process.env.SEORANK_KEY_DAILY_LIMIT ?? 50_000))
+  const keyGate = deps.keyGate ?? new Gate(Number(process.env.SEORANK_KEY_CONCURRENCY ?? 4))
   const inflight = new Map<string, Promise<Audit>>()
   const app = new Hono<Env>()
 
@@ -64,29 +76,32 @@ export function createApp(deps: Deps = {}) {
   const ipOf = (c: Context<Env>) => c.env?.ip || 'unknown'
 
   /** The one path every surface takes: cache, validate, charge, audit. */
-  async function perform(ip: string, raw: string): Promise<Outcome> {
+  async function perform(caller: Caller, raw: string): Promise<Outcome> {
+    const keyed = caller.kind === 'key'
+    const peek = () => (caller.kind === 'key' ? keyQuota.peek(caller.name) : quota.peek(caller.ip))
     const url = normalizeUrl(raw)
-    if (!url) return { kind: 'invalid', message: 'Enter a website address, like example.com.', quota: quota.peek(ip) }
+    if (!url) return { kind: 'invalid', message: 'Enter a website address, like example.com.', quota: peek() }
     const hit = cache.get(url)
-    if (hit) return { kind: 'ok', audit: hit, cached: true, quota: quota.peek(ip) }
+    if (hit) return { kind: 'ok', audit: hit, cached: true, quota: peek() }
     // Validation costs nothing (a DNS lookup), so it happens before an audit is charged.
     try {
       await assertFetchable(url, options.resolve)
     } catch (error) {
-      return { kind: 'refused', message: error instanceof FetchRefused ? error.message : 'That URL cannot be audited.', quota: quota.peek(ip) }
+      return { kind: 'refused', message: error instanceof FetchRefused ? error.message : 'That URL cannot be audited.', quota: peek() }
     }
     const pending = inflight.get(url)
     if (pending) {
       try {
-        return { kind: 'ok', audit: await pending, cached: true, quota: quota.peek(ip) }
+        return { kind: 'ok', audit: await pending, cached: true, quota: peek() }
       } catch (error) {
-        return { kind: 'failed', message: error instanceof AuditError ? error.message : 'The audit failed.', quota: quota.peek(ip) }
+        return { kind: 'failed', message: error instanceof AuditError ? error.message : 'The audit failed.', quota: peek() }
       }
     }
-    if (!gate.tryEnter()) return { kind: 'busy', quota: quota.peek(ip) }
+    const g = keyed ? keyGate : gate
+    if (!g.tryEnter()) return { kind: 'busy', quota: peek() }
     try {
-      const taken = quota.take(ip)
-      if (!taken.ok) return { kind: taken.reason === 'visitor' ? 'limited' : 'capped', quota: taken.quota }
+      const taken = caller.kind === 'key' ? keyQuota.take(caller.name) : quota.take(caller.ip)
+      if (!taken.ok) return { kind: 'reason' in taken && taken.reason === 'global' ? 'capped' : 'limited', quota: taken.quota }
       const job = runAudit(url, options)
       inflight.set(url, job)
       try {
@@ -100,7 +115,7 @@ export function createApp(deps: Deps = {}) {
         inflight.delete(url)
       }
     } finally {
-      gate.leave()
+      g.leave()
     }
   }
 
@@ -112,7 +127,7 @@ export function createApp(deps: Deps = {}) {
 
   app.get('/', (c) => c.html(homePage(quota.peek(ipOf(c)), deps.pitVerify)))
   app.get('/about', (c) => c.html(aboutPage()))
-  app.get('/health', (c) => c.json({ ok: true, version: VERSION, today: quota.stats() }, 200, { 'cache-control': 'no-store' }))
+  app.get('/health', (c) => c.json({ ok: true, version: VERSION, today: quota.stats(), keyed: keyQuota.stats(apiKeys.map((k) => k.name)) }, 200, { 'cache-control': 'no-store' }))
   app.get('/robots.txt', (c) => c.body(`User-agent: *\nDisallow: /audit\nDisallow: /api/\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`, 200, { 'content-type': 'text/plain; charset=utf-8' }))
   app.get('/sitemap.xml', (c) =>
     c.body(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${['/', '/about'].map((p) => `<url><loc>${SITE}${p}</loc></url>`).join('')}</urlset>`, 200, { 'content-type': 'application/xml; charset=utf-8' }),
@@ -122,8 +137,7 @@ export function createApp(deps: Deps = {}) {
     const raw = (c.req.query('url') ?? '').trim()
     if (!raw) return c.redirect('/', 302)
     c.header('cache-control', 'no-store')
-    const ip = ipOf(c)
-    const r = await perform(ip, raw)
+    const r = await perform({ kind: 'visitor', ip: ipOf(c) }, raw)
     rateHeaders(c, r.quota)
     switch (r.kind) {
       case 'ok':
@@ -152,13 +166,27 @@ export function createApp(deps: Deps = {}) {
     c.header('cache-control', 'no-store')
   })
 
-  const apiAudit = async (c: Context<Env>, raw: string) => {
+  /**
+   * The caller for an API request. A request that presents a key must present a
+   * valid one: a wrong key is a 401, never a silent fall back to the free tier.
+   */
+  const callerOf = (c: Context<Env>): Caller | 'bad-key' => {
+    const presented = presentedKey(c.req.raw.headers)
+    if (presented === null) return { kind: 'visitor', ip: ipOf(c) }
+    const name = apiKeys.length ? matchKey(apiKeys, presented) : null
+    return name ? { kind: 'key', name } : 'bad-key'
+  }
+
+  const apiAudit = async (c: Context<Env>, raw: string, opts: { fields?: string; top?: string } = {}) => {
+    const caller = callerOf(c)
+    if (caller === 'bad-key') return c.json({ error: 'Invalid API key.' }, 401, { 'www-authenticate': 'Bearer' })
     if (!raw.trim()) return c.json({ error: 'url is required' }, 400)
-    const r = await perform(ipOf(c), raw)
+    const r = await perform(caller, raw)
     rateHeaders(c, r.quota)
     const q = { limit: r.quota.limit, remaining: r.quota.remaining, resetAt: r.quota.resetAt }
     switch (r.kind) {
       case 'ok':
+        if (opts.fields === 'summary') return c.json({ ...summarize(r.audit, Number(opts.top ?? 5)), cached: r.cached, quota: q })
         return c.json({ ...r.audit, cached: r.cached, quota: q })
       case 'invalid':
       case 'refused':
@@ -167,6 +195,7 @@ export function createApp(deps: Deps = {}) {
         return c.json({ error: r.message, quota: q }, 422)
       case 'limited':
         c.header('retry-after', String(r.quota.retryAfter))
+        if (caller.kind === 'key') return c.json({ error: `API key daily limit reached: ${r.quota.limit} audits. Resets at ${r.quota.resetAt}.`, quota: q }, 429)
         return c.json({ error: `Free limit reached: ${r.quota.limit} audits per day. Resets at ${r.quota.resetAt}. Run it yourself with no limit: bunx seorank audit --local <url>`, quota: q }, 429)
       case 'capped':
         c.header('retry-after', String(r.quota.retryAfter))
@@ -177,13 +206,20 @@ export function createApp(deps: Deps = {}) {
     }
   }
 
-  app.get('/api/audit', (c) => apiAudit(c, c.req.query('url') ?? ''))
+  const auditOpts = (c: Context<Env>, body: { fields?: unknown; top?: unknown } = {}) => {
+    const fields = c.req.query('fields') ?? (typeof body.fields === 'string' ? body.fields : undefined)
+    const top = c.req.query('top') ?? (body.top !== undefined ? String(body.top) : undefined)
+    return { ...(fields ? { fields } : {}), ...(top ? { top } : {}) }
+  }
+  app.get('/api/audit', (c) => apiAudit(c, c.req.query('url') ?? '', auditOpts(c)))
   app.post('/api/audit', async (c) => {
-    const body = (await c.req.json().catch(() => ({}))) as { url?: unknown }
-    return apiAudit(c, typeof body.url === 'string' ? body.url : '')
+    const body = (await c.req.json().catch(() => ({}))) as { url?: unknown; fields?: unknown; top?: unknown }
+    return apiAudit(c, typeof body.url === 'string' ? body.url : '', auditOpts(c, body))
   })
   app.get('/api/quota', (c) => {
-    const q = quota.peek(ipOf(c))
+    const caller = callerOf(c)
+    if (caller === 'bad-key') return c.json({ error: 'Invalid API key.' }, 401, { 'www-authenticate': 'Bearer' })
+    const q = caller.kind === 'key' ? keyQuota.peek(caller.name) : quota.peek(caller.ip)
     rateHeaders(c, q)
     return c.json({ limit: q.limit, used: q.used, remaining: q.remaining, resetAt: q.resetAt })
   })
@@ -203,6 +239,21 @@ export function createApp(deps: Deps = {}) {
   )
   app.onError((_error, c) => (c.req.path.startsWith('/api/') ? c.json({ error: 'Something went wrong.' }, 500) : c.html(errorPage(), 500)))
   return app
+}
+
+/** The small answer for batch callers: score, grade, the top fixes and when it was checked. */
+export function summarize(audit: Audit, top = 5) {
+  const n = Number.isFinite(top) ? Math.min(25, Math.max(0, Math.floor(top))) : 5
+  return {
+    url: audit.url,
+    finalUrl: audit.finalUrl,
+    status: audit.status,
+    score: audit.score,
+    grade: audit.grade,
+    summary: audit.summary,
+    fixes: audit.fixes.slice(0, n),
+    checkedAt: audit.fetchedAt,
+  }
 }
 
 export function serve(options: { port?: number; hostname?: string } = {}) {
