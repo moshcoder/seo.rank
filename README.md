@@ -53,9 +53,21 @@ seo.rank fetches URLs that strangers give it, so `src/fetch.ts` only fetches htt
 | --- | --- |
 | `GET /api/audit?url=example.com` (or `POST {"url": …}`) | the full audit: `score`, `grade`, `checks[]`, `fixes[]`, `page`, `robotsTxt`, `sitemap`, `keywords`, `cached`, `quota` |
 | `GET /api/quota` | `{ limit, used, remaining, resetAt }` |
-| `GET /health` | `{ ok, version, today }` |
+| `GET /health` | `{ ok, version, today, keyed }` |
 
-Headers `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`. CORS open, no key.
+Add `fields=summary` (and optionally `top=N`, default 5, max 25) for a small answer: `url`, `finalUrl`, `status`, `score`, `grade`, `summary`, the top N `fixes`, `checkedAt`, `cached`, `quota`.
+
+Headers `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`. CORS open, no key needed.
+
+### API keys (trusted callers)
+
+`SEORANK_API_KEYS` lists keys for our own services, comma-separated, each `name:key` or a bare `key` (16+ characters). A request with `Authorization: Bearer <key>` or `X-API-Key: <key>`:
+
+- skips the per-visitor free limit and does not count against the public global cap;
+- has its own daily cap per key, `SEORANK_KEY_DAILY_LIMIT` (default 50,000), reported in the same `X-RateLimit-*` headers and by `GET /api/quota` with the key;
+- runs behind its own concurrency gate, `SEORANK_KEY_CONCURRENCY` (default 4), so keyed batches and public visitors cannot starve each other.
+
+A wrong key is a `401`, never a quiet fall back to the free tier. Keys are compared in constant time and never logged; `/health` reports per-key usage by name only. The CLI and MCP server send `SEORANK_API_KEY` when it is set.
 
 ## Surfaces
 
@@ -63,7 +75,7 @@ The house rule: everything ships a TUI, a CLI, an MCP and an API.
 
 | | |
 | --- | --- |
-| Web + API | `bun src/server.ts` (`PORT`, default 8790; `SEORANK_DAILY_LIMIT`, `SEORANK_GLOBAL_DAILY_CAP`, `SEORANK_CONCURRENCY`, `PIT_VERIFY`) |
+| Web + API | `bun src/server.ts` (`PORT`, default 8790; `SEORANK_DAILY_LIMIT`, `SEORANK_GLOBAL_DAILY_CAP`, `SEORANK_CONCURRENCY`, `SEORANK_API_KEYS`, `SEORANK_KEY_DAILY_LIMIT`, `SEORANK_KEY_CONCURRENCY`, `PIT_VERIFY`) |
 | CLI | `seorank audit URL [--json] [--local] [--fixes]`, `seorank quota`, `seorank open URL`, `seorank serve` |
 | TUI | `seorank` |
 | MCP | `seorank mcp`: tools `audit` (url, format text/json) and `quota`. `SEORANK_LOCAL=1` runs audits in-process |

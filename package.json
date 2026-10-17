@@ -1,6 +1,6 @@
 {
   "name": "seorank",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "seo.rank: a free, open-source on-page SEO audit. Web app, JSON API, CLI, TUI and an MCP server (stdio, no API key).",
   "license": "MIT",
   "type": "module",
