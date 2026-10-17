@@ -99,7 +99,7 @@ describe('the Moshpit ring bar', () => {
   it('links through the gateway when the page came through it, or by any other host', async () => {
     for (const headers of [{ host: 'seo.rank', 'x-moshpit-name': 'seo.rank' }, { host: '127.0.0.1:8790' }] as Record<string, string>[]) {
       const html = await page(headers)
-      expect(html).toContain('href="https://pit.moshcode.sh/n/family.ancestry"')
+      expect(html).toContain('href="https://family.ancestry.pit.world/"')
       expect(html).toContain('href="https://pit.world/"')
       expect(html).not.toContain('direct=1')
     }
@@ -111,7 +111,7 @@ describe('the Moshpit ring bar', () => {
     expect(setRing({ sites: [{ name: '<script>' }] })).toBe(false)
     expect(ringSites()).toBe(before)
     expect(setRing({ sites: [...before, { name: 'new.pit', about: 'x', moshpit: true }] })).toBe(true)
-    expect(ringBar('seo.rank', false)).toContain('https://pit.moshcode.sh/n/new.pit')
+    expect(ringBar('seo.rank', false)).toContain('https://new.pit.pit.world/')
     setRing({ sites: before })
   })
 })

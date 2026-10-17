@@ -7,17 +7,17 @@
  * on pit.world and needs no script or CSP exception; until the first read (or
  * if pit.world is down) the list below is used.
  *
- * A Moshpit name opens only for a visitor on Moshpit DNS. The registry gateway
- * (pit.moshcode.sh/n/<name>) fetches it over Moshpit DoH for everyone else and
- * tells us so with an x-moshpit-name header. So: a request for our own name
- * without that header came from Moshpit DNS and gets direct links; anything
- * else gets gateway links.
+ * A Moshpit name opens only for a visitor on Moshpit DNS. Everyone else reaches
+ * it through pit.world's relay, https://<name>.pit.world/, which (like the
+ * registry gateway) tells us so with an x-moshpit-name header. So: a request for
+ * our own name without that header came from Moshpit DNS and gets direct links;
+ * anything else gets relay links.
  *
  * Same file in seo.rank and family.ancestry; pit.world has the original in src/ring.ts.
  */
 const RING_HOME = 'https://pit.world/ring'
 const RING_API = 'https://pit.world/api/ring'
-const GATEWAY = 'https://pit.moshcode.sh/n/'
+const relayUrl = (name: string) => `https://${name}.pit.world/`
 export const RING_PLACEHOLDER = '<!--ring-bar-->'
 
 export type RingSite = { name: string; about: string; moshpit: boolean }
@@ -66,7 +66,7 @@ export function visitorOnMoshpit(self: string, host: string | undefined, gateway
 }
 
 export function siteHref(site: RingSite, direct: boolean): string {
-  return site.moshpit && !direct ? `${GATEWAY}${site.name}` : `https://${site.name}/`
+  return site.moshpit && !direct ? relayUrl(site.name) : `https://${site.name}/`
 }
 
 export function ringBar(self: string, direct: boolean): string {
