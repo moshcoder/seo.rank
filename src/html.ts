@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs'
 import type { Audit, Check, Status } from './audit.js'
 import type { Quota } from './ratelimit.js'
 import { pitFooter } from './pit-footer.js'
+import { ringFooter, ringFooterOptions, setRingFooterOptions } from './ring-footer.js'
 
 export const SITE = 'https://seo.rank'
 export const REPO = 'https://github.com/moshcoder/seo.rank'
@@ -19,6 +20,18 @@ export const LINKS = {
   listing: 'https://pit.world/b/seo.rank',
   pit: 'https://pit.world',
 }
+
+// The footer's own links; the ring nav and copyright come from @profullstack/footer.
+setRingFooterOptions(
+  ringFooterOptions([
+    { label: 'How it works', href: '/about' },
+    { label: 'API', href: '/about#api' },
+    { label: 'MCP', href: '/about#mcp' },
+    { label: 'Privacy', href: '/about#privacy' },
+    { label: 'Source', href: LINKS.repo },
+    { label: 'npm', href: LINKS.npm },
+  ]),
+)
 
 const asset = (name: string) => {
   const body = readFileSync(new URL(`../public/${name}`, import.meta.url))
@@ -73,17 +86,7 @@ ${TRACKER}
 ${adUnit('text_link')}
 ${o.body}
 </main>
-<footer class="foot">
-  <nav>
-    <span>© seo.rank</span>
-    <a href="/about">How it works</a>
-    <a href="/about#api">API</a>
-    <a href="/about#mcp">MCP</a>
-    <a href="/about#privacy">Privacy</a>
-    <a href="${LINKS.repo}">Source (MIT)</a>
-    <a href="${LINKS.npm}">npm</a>
-  </nav>
-</footer>
+${ringFooter()}
 ${pitFooter()}
 </body>
 </html>`
