@@ -6,6 +6,7 @@
  */
 import { Hono, type Context } from 'hono'
 import { startPitFooterRefresh } from './pit-footer.js'
+import { startRingFooterRefresh } from './ring-footer.js'
 import { RING_PLACEHOLDER, ringBar, startRingRefresh, visitorOnMoshpit } from './ring.js'
 import { assertFetchable, FetchRefused } from './fetch.js'
 import { audit as runAudit, AuditCache, AuditError, normalizeUrl, type Audit, type AuditOptions } from './audit.js'
@@ -269,6 +270,7 @@ export function serve(options: { port?: number; hostname?: string } = {}) {
   const app = createApp({ ...(env.PIT_VERIFY ? { pitVerify: env.PIT_VERIFY } : {}) })
   const trustProxy = (env.SEORANK_TRUST_PROXY ?? '1') === '1'
   startRingRefresh()
+  startRingFooterRefresh()
   startPitFooterRefresh('seo.rank')
   return Bun.serve({
     port: options.port ?? Number(env.PORT ?? 8790),
