@@ -1,5 +1,7 @@
 /**
- * Server-rendered pages. No JavaScript at all, no cookies, no third-party anything.
+ * Server-rendered pages. No JavaScript of our own and no cookies. Two things come from
+ * crawlproof.com: its analytics script (cookieless) and an ad in a sandboxed cross-origin
+ * frame, so the CSP needs crawlproof.com in script-src, connect-src and frame-src only.
  */
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -22,6 +24,15 @@ const asset = (name: string) => {
   return `/${name}?v=${createHash('sha256').update(body).digest('hex').slice(0, 10)}`
 }
 const STYLE_URL = asset('style.css')
+
+/** crawlproof.com analytics: the project id it reports to. */
+export const TRACKER_SITE = '1566d3ea-35d9-4fc2-bf9f-0d473f7ddc5a'
+const TRACKER = `<script data-site="${TRACKER_SITE}" src="https://crawlproof.com/stats.js" async></script>`
+
+/** A crawlproof ad, as a cross-origin sandboxed frame. CRAWLPROOF_AD_SLOT overrides the slot; 'off' turns ads off. */
+export const AD_SLOT = process.env.CRAWLPROOF_AD_SLOT ?? 'b4191a7d-8931-4bfe-abc1-30e45d645fdd'
+export const adUnit = (format: 'text_link' | 'banner_300x250') =>
+  AD_SLOT === 'off' ? '' : `<div class="ad-unit ad-${format}"><iframe src="https://crawlproof.com/api/ads/frame?slot=${encodeURIComponent(AD_SLOT)}&amp;format=${format}" title="Advertisement" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" scrolling="no"></iframe></div>`
 
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 export const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (c) => ESC[c]!)
@@ -52,6 +63,7 @@ ${o.pitVerify ? `<meta name="pit-verify" content="${esc(o.pitVerify)}">\n` : ''}
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="${STYLE_URL}">
 <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebApplication', name: 'seo.rank', url: SITE, applicationCategory: 'SEO tool', operatingSystem: 'Any', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, isAccessibleForFree: true, license: `${REPO}/blob/main/LICENSE` }).replace(/</g, '\\u003c')}</script>
+${TRACKER}
 </head>
 <body>
 <!--ring-bar-->
@@ -60,6 +72,7 @@ ${o.pitVerify ? `<meta name="pit-verify" content="${esc(o.pitVerify)}">\n` : ''}
 ${o.body}
 </main>
 <footer class="foot">
+  ${adUnit('text_link')}
   <nav>
     <a href="/about">How it works</a>
     <a href="/about#api">API</a>
@@ -69,7 +82,7 @@ ${o.body}
     <a href="${LINKS.npm}">npm</a>
     <a href="${LINKS.listing}">seo.rank on pit.world</a>
   </nav>
-  <p>Free and open source. No account, no cookies, no tracking. A <a href="${LINKS.pit}">Moshpit</a> site.</p>
+  <p>Free and open source. No account, no cookies. A <a href="${LINKS.pit}">Moshpit</a> site.</p>
 </footer>
 </body>
 </html>`
@@ -104,7 +117,8 @@ export function homePage(quota: Quota | null, pitVerify?: string): string {
   <div><h2>What it checks</h2><p>Title and meta description length, canonical, robots meta, robots.txt and sitemap, the heading outline, image alt text, internal and external links, Open Graph and X cards, JSON-LD types, hreflang, HTTPS, http→https and HSTS, response time, HTML weight and compression.</p></div>
   <div><h2>What it repeats</h2><p>The words and phrases your page says most, with density, and whether the top one is in your title or H1. Usually that is the first surprise: the page is about something else than you thought.</p></div>
   <div><h2>Where you want it</h2><p>A <a href="/about#api">JSON API</a>, a CLI and TUI (<code>bunx seorank</code>), and an <a href="/about#mcp">MCP server</a> so your agent can audit pages too. Open source under MIT: <a href="${REPO}">run your own</a>, without limits.</p></div>
-</section>`,
+</section>
+${adUnit('banner_300x250')}`,
   })
 }
 
@@ -174,6 +188,7 @@ ${a.fixes.length ? `<section class="card"><h2>Fix these first</h2><ol class="fix
   </dl>
   ${outline ? `<h3>Heading outline</h3><ul class="outline">${outline}</ul>` : ''}
 </section>
+${adUnit('banner_300x250')}
 <section class="card upsell">
   <div><h2>And the AI crawlers?</h2><p>Search engines are half the story now. <a href="${LINKS.crawlproof}">CrawlProof</a> shows what ChatGPT, Claude, Perplexity and the other answer engines can actually read on this page, and tracks which bots visit.</p><p><a class="btn" href="${LINKS.crawlproof}">Check it with CrawlProof →</a></p></div>
   <div><h2>Rather have it fixed?</h2><p>Describe the site you want and <a href="${LINKS.build}">pit.world/build</a> builds it, with every check on this page passing: $49 to build, $2 a month to keep it online.</p><p><a class="btn ghost" href="${LINKS.build}">Build a site →</a></p></div>
@@ -210,7 +225,7 @@ export function aboutPage(): string {
 
 <h2 id="privacy">Privacy</h2>
 <ul>
-<li>No cookies, no accounts, no analytics, no third-party scripts. The pages have no JavaScript.</li>
+<li>No cookies and no accounts. The only script on the pages is <a href="https://crawlproof.com">CrawlProof</a>'s cookieless page-view counter, and the ads are CrawlProof ads in a sandboxed frame.</li>
 <li>No access log, and the app logs nothing per request.</li>
 <li>The daily limit counts an HMAC of your IP under a secret that lives only in memory and is replaced every midnight (UTC); the counts cannot be turned back into addresses.</li>
 <li>The one-hour cache holds URLs and their results, nothing about who asked.</li>

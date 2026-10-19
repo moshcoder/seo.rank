@@ -41,7 +41,7 @@ The score is the weighted share of checks passed (a warning earns half). The fix
 
 ## Privacy
 
-No cookies (the server strips `Set-Cookie` from every response), no accounts, no analytics, no JavaScript on the pages, no third-party requests. nginx keeps no access log for the site and the app logs nothing per request. Strict CSP, `Referrer-Policy: no-referrer`.
+No cookies (the server strips `Set-Cookie` from every response) and no accounts. The pages load two things from crawlproof.com: its cookieless analytics script and an ad in a sandboxed cross-origin frame (`CRAWLPROOF_AD_SLOT` overrides the slot, `off` removes ads); the CSP allows crawlproof.com in `script-src`, `connect-src` and `frame-src` and nothing else. nginx keeps no access log for the site and the app logs nothing per request. Strict CSP, `Referrer-Policy: no-referrer`.
 
 ## Safe fetching
 
