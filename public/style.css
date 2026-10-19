@@ -87,8 +87,8 @@ main { max-width: 960px; margin: 0 auto; padding: 0 16px 3rem; }
 .prose { max-width: 720px; margin: 2rem auto; }
 .prose h1 { font-size: 2.1rem; }
 .prose h2 { margin-top: 2rem; }
-.foot { border-top: 1px solid var(--line); padding: 1.5rem 16px 2.5rem; text-align: center; color: var(--muted); font-size: .88rem; }
-.foot nav { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; justify-content: center; margin-bottom: .6rem; }
+.foot { border-top: 1px solid var(--line); padding: 1rem 16px; text-align: center; color: var(--muted); font-size: .88rem; }
+.foot nav { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; justify-content: center; }
 .foot nav a { color: var(--muted); }
 /* crawlproof ad units (cross-origin frames) */
 .ad-unit { margin: 24px auto; display: flex; justify-content: center; }

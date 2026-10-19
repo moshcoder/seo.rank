@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { Audit, Check, Status } from './audit.js'
 import type { Quota } from './ratelimit.js'
+import { pitFooter } from './pit-footer.js'
 
 export const SITE = 'https://seo.rank'
 export const REPO = 'https://github.com/moshcoder/seo.rank'
@@ -69,21 +70,21 @@ ${TRACKER}
 <!--ring-bar-->
 <header class="top"><a class="brand" href="/">${LOGO}<span>seo<b>.rank</b></span></a><nav><a href="/about">How it works</a><a href="/about#api">API · CLI · MCP</a><a href="${REPO}">GitHub</a></nav></header>
 <main>
+${adUnit('text_link')}
 ${o.body}
 </main>
 <footer class="foot">
-  ${adUnit('text_link')}
   <nav>
+    <span>© seo.rank</span>
     <a href="/about">How it works</a>
     <a href="/about#api">API</a>
-    <a href="/about#mcp">MCP server</a>
+    <a href="/about#mcp">MCP</a>
     <a href="/about#privacy">Privacy</a>
     <a href="${LINKS.repo}">Source (MIT)</a>
     <a href="${LINKS.npm}">npm</a>
-    <a href="${LINKS.listing}">seo.rank on pit.world</a>
   </nav>
-  <p>Free and open source. No account, no cookies. A <a href="${LINKS.pit}">Moshpit</a> site.</p>
 </footer>
+${pitFooter()}
 </body>
 </html>`
 }
@@ -117,8 +118,7 @@ export function homePage(quota: Quota | null, pitVerify?: string): string {
   <div><h2>What it checks</h2><p>Title and meta description length, canonical, robots meta, robots.txt and sitemap, the heading outline, image alt text, internal and external links, Open Graph and X cards, JSON-LD types, hreflang, HTTPS, http→https and HSTS, response time, HTML weight and compression.</p></div>
   <div><h2>What it repeats</h2><p>The words and phrases your page says most, with density, and whether the top one is in your title or H1. Usually that is the first surprise: the page is about something else than you thought.</p></div>
   <div><h2>Where you want it</h2><p>A <a href="/about#api">JSON API</a>, a CLI and TUI (<code>bunx seorank</code>), and an <a href="/about#mcp">MCP server</a> so your agent can audit pages too. Open source under MIT: <a href="${REPO}">run your own</a>, without limits.</p></div>
-</section>
-${adUnit('banner_300x250')}`,
+</section>`,
   })
 }
 
