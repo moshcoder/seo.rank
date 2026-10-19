@@ -23,6 +23,21 @@ describe('pages', () => {
     expect(html).not.toContain('pit-verify')
     expect(html).toContain('https://pit.world/b/seo.rank')
   })
+  it('carries the crawlproof tracker and ads, and the CSP allows only crawlproof for them', async () => {
+    const r = await make().get('/')
+    const csp = r.headers.get('content-security-policy')!
+    expect(csp).toContain('script-src https://crawlproof.com;')
+    expect(csp).toContain('connect-src https://crawlproof.com;')
+    expect(csp).toContain('frame-src https://crawlproof.com;')
+    expect(csp).not.toContain('unsafe')
+    const html = await r.text()
+    expect(html).toContain('<script data-site="1566d3ea-35d9-4fc2-bf9f-0d473f7ddc5a" src="https://crawlproof.com/stats.js" async></script>')
+    expect(html).toContain('slot=b4191a7d-8931-4bfe-abc1-30e45d645fdd&amp;format=text_link')
+    expect(html).toContain('format=banner_300x250')
+    const about = await (await make().get('/about')).text()
+    expect(about).toContain('data-site="1566d3ea-35d9-4fc2-bf9f-0d473f7ddc5a"')
+    expect(about).toContain('format=text_link')
+  })
   it('renders the pit-verify meta when configured', async () => {
     const html = await (await make({ pitVerify: 'abc123' }).get('/')).text()
     expect(html).toContain('<meta name="pit-verify" content="abc123">')
