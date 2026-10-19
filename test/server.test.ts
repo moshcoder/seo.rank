@@ -21,7 +21,6 @@ describe('pages', () => {
     const html = await r.text()
     expect(html).toContain('<b>10</b> of 10 free audits left today')
     expect(html).not.toContain('pit-verify')
-    expect(html).toContain('https://pit.world/b/seo.rank')
   })
   it('carries the crawlproof tracker and ads, and the CSP allows only crawlproof for them', async () => {
     const r = await make().get('/')
@@ -29,11 +28,16 @@ describe('pages', () => {
     expect(csp).toContain('script-src https://crawlproof.com;')
     expect(csp).toContain('connect-src https://crawlproof.com;')
     expect(csp).toContain('frame-src https://crawlproof.com;')
-    expect(csp).not.toContain('unsafe')
+    // Inline styles only, for the pit.world footer fragment; never inline script.
+    expect(csp).toContain("style-src 'self' 'unsafe-inline';")
+    expect(csp).not.toContain("'unsafe-eval'")
+    expect(csp).not.toMatch(/script-src[^;]*unsafe/)
     const html = await r.text()
     expect(html).toContain('<script data-site="1566d3ea-35d9-4fc2-bf9f-0d473f7ddc5a" src="https://crawlproof.com/stats.js" async></script>')
     expect(html).toContain('slot=b4191a7d-8931-4bfe-abc1-30e45d645fdd&amp;format=text_link')
-    expect(html).toContain('format=banner_300x250')
+    // No ad in or pressed against the footer.
+    expect(html).not.toMatch(/<\/iframe><\/div>\s*<\/main>/)
+    expect(html.slice(html.indexOf('<footer'))).not.toContain('ad-unit')
     const about = await (await make().get('/about')).text()
     expect(about).toContain('data-site="1566d3ea-35d9-4fc2-bf9f-0d473f7ddc5a"')
     expect(about).toContain('format=text_link')

@@ -5,6 +5,7 @@
  * logged. Errors are reported without the URL attached.
  */
 import { Hono, type Context } from 'hono'
+import { startPitFooterRefresh } from './pit-footer.js'
 import { RING_PLACEHOLDER, ringBar, startRingRefresh, visitorOnMoshpit } from './ring.js'
 import { assertFetchable, FetchRefused } from './fetch.js'
 import { audit as runAudit, AuditCache, AuditError, normalizeUrl, type Audit, type AuditOptions } from './audit.js'
@@ -38,7 +39,7 @@ type Caller = { kind: 'visitor'; ip: string } | { kind: 'key'; name: string }
 type Env = { Bindings: { ip?: string } }
 
 const SECURITY_HEADERS: Record<string, string> = {
-  'content-security-policy': "default-src 'none'; script-src https://crawlproof.com; connect-src https://crawlproof.com; frame-src https://crawlproof.com; style-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+  'content-security-policy': "default-src 'none'; script-src https://crawlproof.com; connect-src https://crawlproof.com; frame-src https://crawlproof.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
   'referrer-policy': 'no-referrer',
   'x-content-type-options': 'nosniff',
   'permissions-policy': 'interest-cohort=(), browsing-topics=(), camera=(), microphone=(), geolocation=()',
@@ -268,6 +269,7 @@ export function serve(options: { port?: number; hostname?: string } = {}) {
   const app = createApp({ ...(env.PIT_VERIFY ? { pitVerify: env.PIT_VERIFY } : {}) })
   const trustProxy = (env.SEORANK_TRUST_PROXY ?? '1') === '1'
   startRingRefresh()
+  startPitFooterRefresh('seo.rank')
   return Bun.serve({
     port: options.port ?? Number(env.PORT ?? 8790),
     hostname: options.hostname ?? env.HOST ?? '127.0.0.1',
