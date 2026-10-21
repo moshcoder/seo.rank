@@ -34,13 +34,14 @@ describe('pages', () => {
     expect(csp).not.toMatch(/script-src[^;]*unsafe/)
     const html = await r.text()
     expect(html).toContain('<script data-site="1566d3ea-35d9-4fc2-bf9f-0d473f7ddc5a" src="https://crawlproof.com/stats.js" async></script>')
-    expect(html).toContain('slot=b4191a7d-8931-4bfe-abc1-30e45d645fdd&amp;format=text_link')
-    // No ad in or pressed against the footer.
-    expect(html).not.toMatch(/<\/iframe><\/div>\s*<\/main>/)
-    expect(html.slice(html.indexOf('<footer'))).not.toContain('ad-unit')
+    // No ad on the home page.
+    expect(html).not.toContain('crawlproof.com/api/ads')
     const about = await (await make().get('/about')).text()
     expect(about).toContain('data-site="1566d3ea-35d9-4fc2-bf9f-0d473f7ddc5a"')
-    expect(about).toContain('format=text_link')
+    expect(about).toContain('slot=b4191a7d-8931-4bfe-abc1-30e45d645fdd&amp;format=text_link')
+    // No ad in or pressed against the footer.
+    expect(about).not.toMatch(/<\/iframe><\/div>\s*<\/main>/)
+    expect(about.slice(about.indexOf('<footer'))).not.toContain('ad-unit')
   })
   it('renders the pit-verify meta when configured', async () => {
     const html = await (await make({ pitVerify: 'abc123' }).get('/')).text()
