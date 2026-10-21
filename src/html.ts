@@ -43,10 +43,13 @@ const STYLE_URL = asset('style.css')
 export const TRACKER_SITE = '1566d3ea-35d9-4fc2-bf9f-0d473f7ddc5a'
 const TRACKER = `<script data-site="${TRACKER_SITE}" src="https://crawlproof.com/stats.js" async></script>`
 
-/** A crawlproof ad, as a cross-origin sandboxed frame. CRAWLPROOF_AD_SLOT overrides the slot; 'off' turns ads off. */
+/**
+ * A crawlproof ad, as a cross-origin sandboxed frame: one low-profile text_link line at the
+ * top of the content, never on the home page. CRAWLPROOF_AD_SLOT overrides the slot; 'off' turns ads off.
+ */
 export const AD_SLOT = process.env.CRAWLPROOF_AD_SLOT ?? 'b4191a7d-8931-4bfe-abc1-30e45d645fdd'
-export const adUnit = (format: 'text_link' | 'banner_300x250') =>
-  AD_SLOT === 'off' ? '' : `<div class="ad-unit ad-${format}"><iframe src="https://crawlproof.com/api/ads/frame?slot=${encodeURIComponent(AD_SLOT)}&amp;format=${format}" title="Advertisement" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" scrolling="no"></iframe></div>`
+export const adUnit = () =>
+  AD_SLOT === 'off' ? '' : `<div class="ad-unit"><iframe src="https://crawlproof.com/api/ads/frame?slot=${encodeURIComponent(AD_SLOT)}&amp;format=text_link" title="Advertisement" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation" scrolling="no"></iframe></div>`
 
 const ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 export const esc = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, (c) => ESC[c]!)
@@ -83,7 +86,7 @@ ${TRACKER}
 <!--ring-bar-->
 <header class="top"><a class="brand" href="/">${LOGO}<span>seo<b>.rank</b></span></a><nav><a href="/about">How it works</a><a href="/about#api">API · CLI · MCP</a><a href="${REPO}">GitHub</a></nav></header>
 <main>
-${adUnit('text_link')}
+${o.path === '/' ? '' : adUnit()}
 ${o.body}
 </main>
 ${ringFooter()}
@@ -191,7 +194,6 @@ ${a.fixes.length ? `<section class="card"><h2>Fix these first</h2><ol class="fix
   </dl>
   ${outline ? `<h3>Heading outline</h3><ul class="outline">${outline}</ul>` : ''}
 </section>
-${adUnit('banner_300x250')}
 <section class="card upsell">
   <div><h2>And the AI crawlers?</h2><p>Search engines are half the story now. <a href="${LINKS.crawlproof}">CrawlProof</a> shows what ChatGPT, Claude, Perplexity and the other answer engines can actually read on this page, and tracks which bots visit.</p><p><a class="btn" href="${LINKS.crawlproof}">Check it with CrawlProof →</a></p></div>
   <div><h2>Rather have it fixed?</h2><p>Describe the site you want and <a href="${LINKS.build}">pit.world/build</a> builds it, with every check on this page passing: $49 to build, $2 a month to keep it online.</p><p><a class="btn ghost" href="${LINKS.build}">Build a site →</a></p></div>
