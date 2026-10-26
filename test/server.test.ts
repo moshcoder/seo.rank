@@ -30,6 +30,8 @@ describe('pages', () => {
     expect(csp).toContain('frame-src https://crawlproof.com;')
     // Inline styles only, for the pit.world footer fragment; never inline script.
     expect(csp).toContain("style-src 'self' 'unsafe-inline';")
+    // The footer's built.indie and pwamart badges, by name; never an open img-src.
+    expect(csp).toContain("img-src 'self' data: https://built.indie.pit.world https://pwamart.com;")
     expect(csp).not.toContain("'unsafe-eval'")
     expect(csp).not.toMatch(/script-src[^;]*unsafe/)
     const html = await r.text()
