@@ -78,6 +78,8 @@ ${o.pitVerify ? `<meta name="pit-verify" content="${esc(o.pitVerify)}">\n` : ''}
 <meta property="og:url" content="${esc(url)}">
 <meta name="twitter:card" content="summary">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="stylesheet" href="${STYLE_URL}">
 <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebApplication', name: 'seo.rank', url: SITE, applicationCategory: 'SEO tool', operatingSystem: 'Any', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, isAccessibleForFree: true, license: `${REPO}/blob/main/LICENSE` }).replace(/</g, '\\u003c')}</script>
 ${TRACKER}

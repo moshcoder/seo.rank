@@ -40,7 +40,7 @@ type Caller = { kind: 'visitor'; ip: string } | { kind: 'key'; name: string }
 type Env = { Bindings: { ip?: string } }
 
 const SECURITY_HEADERS: Record<string, string> = {
-  'content-security-policy': "default-src 'none'; script-src https://crawlproof.com; connect-src https://crawlproof.com; frame-src https://crawlproof.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://built.indie.pit.world https://pwamart.com; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
+  'content-security-policy': "default-src 'none'; script-src https://crawlproof.com; connect-src https://crawlproof.com; frame-src https://crawlproof.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://built.indie.pit.world https://pwamart.com; manifest-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'",
   'referrer-policy': 'no-referrer',
   'x-content-type-options': 'nosniff',
   'permissions-policy': 'interest-cohort=(), browsing-topics=(), camera=(), microphone=(), geolocation=()',
@@ -235,8 +235,8 @@ export function createApp(deps: Deps = {}) {
 
   // --- static -------------------------------------------------------------------
   const dir = deps.publicDir ?? new URL('../public/', import.meta.url).pathname
-  const TYPES: Record<string, string> = { css: 'text/css; charset=utf-8', svg: 'image/svg+xml', png: 'image/png' }
-  app.get('/:file{[a-z0-9-]+\\.(css|svg|png)}', async (c) => {
+  const TYPES: Record<string, string> = { css: 'text/css; charset=utf-8', svg: 'image/svg+xml', png: 'image/png', webmanifest: 'application/manifest+json' }
+  app.get('/:file{[a-z0-9-]+\\.(css|svg|png|webmanifest)}', async (c) => {
     const file = Bun.file(`${dir}${c.req.param('file')}`)
     if (!(await file.exists())) return c.notFound()
     const ext = c.req.param('file').split('.').pop()!

@@ -12,6 +12,26 @@ const make = (opts: { pitVerify?: string; quota?: DailyQuota } = {}) => {
 }
 
 describe('pages', () => {
+  it('is an installable PWA: linked manifest with 192 and 512 PNG icons, allowed by the CSP', async () => {
+    const { get } = make()
+    const home = await get('/')
+    expect(home.headers.get('content-security-policy')).toContain("manifest-src 'self'")
+    expect(await home.text()).toContain('<link rel="manifest" href="/manifest.webmanifest">')
+    const m = await get('/manifest.webmanifest')
+    expect(m.status).toBe(200)
+    expect(m.headers.get('content-type')).toBe('application/manifest+json')
+    const manifest = (await m.json()) as { name: string; start_url: string; display: string; icons: { src: string; sizes: string; type: string }[] }
+    expect(manifest.name).toBeTruthy()
+    expect(manifest.start_url).toBe('/')
+    expect(manifest.display).toBe('standalone')
+    for (const size of ['192x192', '512x512']) {
+      const icon = manifest.icons.find((i) => i.sizes === size && i.type === 'image/png')!
+      expect(icon).toBeTruthy()
+      const r = await get(icon.src)
+      expect(r.status).toBe(200)
+      expect(r.headers.get('content-type')).toBe('image/png')
+    }
+  })
   it('serves the homepage with security headers, no cookies, and the remaining count', async () => {
     const { get } = make()
     const r = await get('/')
