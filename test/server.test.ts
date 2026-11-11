@@ -45,8 +45,8 @@ describe('pages', () => {
   it('carries the crawlproof tracker and ads, and the CSP allows only crawlproof for them', async () => {
     const r = await make().get('/')
     const csp = r.headers.get('content-security-policy')!
-    expect(csp).toContain('script-src https://crawlproof.com;')
-    expect(csp).toContain('connect-src https://crawlproof.com;')
+    expect(csp).toContain('script-src https://crawlproof.com https://cdn.jsdelivr.net;')
+    expect(csp).toContain("connect-src 'self' https://crawlproof.com;")
     expect(csp).toContain('frame-src https://crawlproof.com;')
     // Inline styles only, for the pit.world footer fragment; never inline script.
     expect(csp).toContain("style-src 'self' 'unsafe-inline';")
