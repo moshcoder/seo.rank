@@ -83,6 +83,7 @@ ${o.pitVerify ? `<meta name="pit-verify" content="${esc(o.pitVerify)}">\n` : ''}
 <link rel="stylesheet" href="${STYLE_URL}">
 <script type="application/ld+json">${JSON.stringify({ '@context': 'https://schema.org', '@type': 'WebApplication', name: 'seo.rank', url: SITE, applicationCategory: 'SEO tool', operatingSystem: 'Any', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' }, isAccessibleForFree: true, license: `${REPO}/blob/main/LICENSE` }).replace(/</g, '\\u003c')}</script>
 ${TRACKER}
+<script type="module" data-webmcp src="https://cdn.jsdelivr.net/npm/@profullstack/webmcp@0/src/embed.js" data-llms-txt="false" data-pages='{"home":"/","about":"/about"}'></script>
 </head>
 <body>
 <!--ring-bar-->
@@ -103,7 +104,7 @@ function quotaLine(q: Quota | null, note = ''): string {
 }
 
 function form(value = '', autofocus = true): string {
-  return `<form class="audit-form" action="/audit" method="get" role="search">
+  return `<form class="audit-form" action="/audit" method="get" role="search" toolname="audit_url" tooldescription="Run a free SEO audit of a web page (titles, meta, headings, links, speed hints) and open the scored report. Uses one of the visitor's daily audits." toolautosubmit>
   <label class="sr" for="u">Website address</label>
   <input id="u" name="url" type="text" inputmode="url" autocomplete="url" spellcheck="false" placeholder="example.com/page" value="${esc(value)}" required maxlength="2048"${autofocus ? ' autofocus' : ''}>
   <button type="submit">Audit</button>
